@@ -1,0 +1,71 @@
+# Defining the model
+
+model = tree.HoeffdingTreeClassifier(
+     grace_period=100,
+ )
+
+
+def WeighteduncertainitySamp(df,thresh,model,Beta):
+  # Create a vector that stores all the previously trained obseravtions
+  import math
+  column_names = []
+  for col in df.columns:
+    column_names.append(col)
+  z = []
+  for i in range(df.shape[0]):
+    z.append((list(df.loc[i][0:df.shape[1]-1]),df.loc[i][df.shape[1]-1]))
+  # Create the spark dataframe with the column names
+  import math
+  from statistics import mean
+
+  training_data_vec = [] 
+  prob1 = []
+  prob0 = []
+  diff = []
+  acc=[]
+  correct_cnt = 0
+  training_data = 2000
+  total_data = 0
+  for x in range(len(z)):
+      a = {}
+      data = z[x][0]
+      for p in range(len(column_names)-1):
+        a[column_names[p]]=data[p]
+      b = z[x][1]
+      total_data+= 1 
+      if x<2000:
+          model=model.learn_one(a,b)
+          training_data_vec.append(a)
+      else:
+          pred = model.predict_one(a)
+          if pred == b:
+              acc.append(1)
+              correct_cnt += 1
+          else:
+              acc.append(0)
+          prob_0 = model.predict_proba_one(a)[0]
+          prob_1 = model.predict_proba_one(a)[1]
+          prob1.append(prob_1)
+          prob0.append(prob_0)
+          diff.append(prob_1-prob_0)
+          # Simialrity Measure is calculated using a distance measure, Using the last set of observations used for training the model. 
+
+                 ## Code to find the distance measure , with a window
+          # Assuming window size as 500
+          distance_measure = []
+          val1 = list(a.values())
+          for m in training_data_vec[-500:]:
+            val2 = list(m.values())
+            distance = math.dist(val1,val2)
+            distance_measure.append(distance)
+          dist = mean(distance_measure)
+          if (1-abs(prob_0-prob_1))*dist**(Beta) >= thresh:
+              model=model.learn_one(a,b)
+              training_data += 1
+              training_data_vec.append(a)
+  from statistics import mean
+  accuracy_measure=[]
+  for p in range(math.floor(len(z)/1000)):
+    accuracy_measure.append(mean(acc[1:(p+1)*1000]))
+  print(training_data)
+  return(accuracy_measure)
